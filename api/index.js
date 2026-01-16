@@ -37,7 +37,7 @@ export default async function handler(request) {
   // 4. 构建自定义地区自动池策略组
   const regions = [
     { name: "🇺🇸 美国·自动池", regex: /美|US|States/i },
-    { name: "🇬🇧 英国·自动池", regex: /英|UK|Britain/i },
+    { name: "🇬🇧 英国·自动池", regex: /英|UK|Kingdom/i },
     { name: "🇸🇬 新加坡·自动池", regex: /新|SG|Singapore/i },
     { name: "🇹🇼 台湾·自动池", regex: /台|TW|Tai/i }
   ];
@@ -57,46 +57,14 @@ export default async function handler(request) {
   customGroups += `  - name: "⚡ 智能容灾"\n    type: url-test\n    url: "http://www.gstatic.com/generate_204"\n    interval: 300\n    proxies:\n`;
   customGroups += `      - "🇺🇸 美国·自动池"\n      - "🇸🇬 新加坡·自动池"\n      - "🇹🇼 台湾·自动池"\n`;
   
-  // 6. 🔥 修改原规则中的策略组引用
-  let modifiedRules = originalRules;
-  const redirectMap = {
-    'youtube': '⚡ 智能容灾',
-    'googlevideo': '⚡ 智能容灾',
-    'twitter': '⚡ 智能容灾',
-    'x.com': '⚡ 智能容灾'
-  };
-  
-  // 逐行处理规则
-  const ruleLines = modifiedRules.split('\n');
-  modifiedRules = ruleLines.map(line => {
-    // 跳过非规则行
-    if (!line.trim().startsWith('-')) return line;
-    
-    const lineLower = line.toLowerCase();
-    
-    // 检查是否匹配需要重定向的关键词
-    for (const [keyword, targetGroup] of Object.entries(redirectMap)) {
-      if (lineLower.includes(keyword)) {
-        // 替换规则末尾的策略组
-        // 支持格式：- DOMAIN-SUFFIX,youtube.com,原策略组
-        const lastCommaIndex = line.lastIndexOf(',');
-        if (lastCommaIndex !== -1) {
-          return line.substring(0, lastCommaIndex + 1) + targetGroup;
-        }
-      }
-    }
-    
-    return line;
-  }).join('\n');
-  
-  // 7. 组装最终 YAML
+  // 6. 组装最终 YAML：完全保留原规则，不做任何修改
   const finalYaml = `${baseConfig}
 
 proxy-groups:
 ${customGroups}
 ${originalProxyGroups}
 
-${modifiedRules}`;
+${originalRules}`;
   
   return new Response(finalYaml, {
     headers: { "Content-Type": "text/yaml; charset=utf-8" }
