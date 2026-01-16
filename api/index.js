@@ -1,8 +1,7 @@
 // ================= 用户配置区域 =================
 
 // 【重要】这里必须填机场提供的 "Clash" 或 "Clash Meta" 专用订阅链接！
-// 格式通常包含 flag=clash 或者结尾是 .yaml
-const SUBSCRIPTION_URL = "https://你的机场域名/api/v1/client/subscribe?token=xxx&flag=clash";
+const SUBSCRIPTION_URL = "https://cdn.zenithgrid.co/?L2Rvd25sb2FkQ29uZmlnL0NsYXNoLmFzcHg/dD10cm9qYW4mZXE9d2luZG93cyZ1cms9ZDRjMmZiNmItYTQ3MC00MzM0LTg3NDgtNGRhMmQ5OWU1MzU3Jm1tPTEzMDE2OSZrdG1tPXp4SCUyZjdpSm9oWFJ2cENrSjFqZU1ndyUzZCUzZCY=";
 
 // ================= Vercel 适配区域 =================
 
