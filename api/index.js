@@ -37,7 +37,7 @@ export default async function handler(request) {
     if (!n.includes("Traffic") && !n.includes("Expire")) proxyNames.push(n);
   }
   
-  // 5. 构建策略组
+  // 5. 构建地区自动池策略组
   const regions = [
     { name: "🇺🇸 美国·自动池", regex: /美|US|States/i },
     { name: "🇬🇧 英国·自动池", regex: /英|UK|Britain/i },
@@ -52,29 +52,49 @@ export default async function handler(request) {
     const matched = proxyNames.filter(n => r.regex.test(n));
     const finalProxies = matched.length > 0 ? matched : proxyNames;
     createdGroups.push(r.name);
-    groupYaml += `  - {name: "${r.name}", type: url-test, url: "http://www.gstatic.com/generate_204", interval: 300, proxies: [${finalProxies.map(p => `"${p}"`).join(",")}]}\n`;
+    groupYaml += `  - name: "${r.name}"\n    type: url-test\n    url: "http://www.gstatic.com/generate_204"\n    interval: 300\n    proxies:\n`;
+    finalProxies.forEach(p => {
+      groupYaml += `      - "${p}"\n`;
+    });
   });
   
+  // 6. 智能容灾组
+  groupYaml += `  - name: "⚡ 智能容灾"\n    type: url-test\n    url: "http://www.gstatic.com/generate_204"\n    interval: 300\n    proxies:\n`;
+  groupYaml += `      - "🇺🇸 美国·自动池"\n      - "🇸🇬 新加坡·自动池"\n      - "🇹🇼 台湾·自动池"\n`;
+  
+  // 7. 应用专用策略组
   const common = ["⚡ 智能容灾", ...createdGroups, "DIRECT"];
-  groupYaml += `  - {name: "⚡ 智能容灾", type: url-test, url: "http://www.gstatic.com/generate_204", interval: 300, proxies: ["🇺🇸 美国·自动池", "🇸🇬 新加坡·自动池", "🇹🇼 台湾·自动池"]}\n`;
+  const apps = [
+    "🤖 OpenAI",
+    "🔮 Claude", 
+    "✨ Gemini",
+    "✖️ X & Grok",
+    "💰 金融支付",
+    "📺 YouTube",
+    "🎬 Netflix",
+    "🔎 Google",
+    "🐟 漏网之鱼"
+  ];
   
-  const apps = ["🤖 OpenAI", "🔮 Claude", "✨ Gemini", "✖️ X & Grok", "💰 金融支付", "📺 YouTube", "🎬 Netflix", "🔎 Google", "🐟 漏网之鱼"];
   apps.forEach(app => {
-    groupYaml += `  - {name: "${app}", type: select, proxies: [${common.map(o => `"${o}"`).join(",")}]}\n`;
+    groupYaml += `  - name: "${app}"\n    type: select\n    proxies:\n`;
+    common.forEach(proxy => {
+      groupYaml += `      - "${proxy}"\n`;
+    });
   });
   
-  // 6. 构建自定义规则
-  const customRules = `  - GEOSITE,openai,"🤖 OpenAI"
-  - GEOSITE,anthropic,"🔮 Claude"
-  - DOMAIN-SUFFIX,claude.ai,"🔮 Claude"
-  - DOMAIN-KEYWORD,gemini,"✨ Gemini"
-  - GEOSITE,twitter,"✖️ X & Grok"
-  - GEOSITE,category-finance,"💰 金融支付"
-  - GEOSITE,youtube,"📺 YouTube"
-  - GEOSITE,netflix,"🎬 Netflix"
-  - GEOSITE,google,"🔎 Google"`;
+  // 8. 构建自定义规则
+  const customRules = `  - GEOSITE,openai,🤖 OpenAI
+  - GEOSITE,anthropic,🔮 Claude
+  - DOMAIN-SUFFIX,claude.ai,🔮 Claude
+  - DOMAIN-KEYWORD,gemini,✨ Gemini
+  - GEOSITE,twitter,✖️ X & Grok
+  - GEOSITE,category-finance,💰 金融支付
+  - GEOSITE,youtube,📺 YouTube
+  - GEOSITE,netflix,🎬 Netflix
+  - GEOSITE,google,🔎 Google`;
   
-  // 7. 组装最终 YAML（只有一个 rules:）
+  // 9. 组装最终 YAML（只有一个 rules:）
   const finalYaml = `${baseConfig}
 
 ${groupYaml}
