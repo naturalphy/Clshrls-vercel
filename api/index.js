@@ -9,26 +9,23 @@ export default async function handler(request) {
   
   const rawText = await resp.text();
   
-  // 1. 找到 proxy-groups 的起始位置
+  // 1. 找到 proxy-groups 和 rules 的位置
   const proxyGroupsStart = rawText.search(/^proxy-groups:/m);
-  
-  // 2. 找到 rules 的起始位置
   const rulesStart = rawText.search(/^rules:/m);
   
-  // 3. 提取三个部分
+  // 2. 提取三个部分
   let baseConfig = "";
-  let originalRulesContent = "";
+  let originalRules = "";
   
   if (proxyGroupsStart !== -1 && rulesStart !== -1) {
     // 基础配置：从开头到 proxy-groups 之前
     baseConfig = rawText.substring(0, proxyGroupsStart).trim();
     
-    // 原始规则内容：从 rules: 之后的内容（去掉 "rules:" 这一行）
-    const rulesSection = rawText.substring(rulesStart);
-    originalRulesContent = rulesSection.replace(/^rules:\s*\n/m, '');
+    // 原始规则：从 rules: 开始到结尾（保留完整的 rules: 部分）
+    originalRules = rawText.substring(rulesStart).trim();
   }
   
-  // 4. 提取所有节点名称
+  // 3. 提取所有节点名称
   const proxyNames = [];
   const nameRegex = /^\s*-\s*\{?.*name:\s*["']?([^"'},]+)["']?/gm;
   let match;
@@ -37,7 +34,7 @@ export default async function handler(request) {
     if (!n.includes("Traffic") && !n.includes("Expire")) proxyNames.push(n);
   }
   
-  // 5. 构建地区自动池策略组
+  // 4. 构建地区自动池策略组
   const regions = [
     { name: "🇺🇸 美国·自动池", regex: /美|US|States/i },
     { name: "🇬🇧 英国·自动池", regex: /英|UK|Britain/i },
@@ -46,61 +43,26 @@ export default async function handler(request) {
   ];
   
   let groupYaml = "proxy-groups:\n";
-  let createdGroups = [];
   
   regions.forEach(r => {
     const matched = proxyNames.filter(n => r.regex.test(n));
     const finalProxies = matched.length > 0 ? matched : proxyNames;
-    createdGroups.push(r.name);
     groupYaml += `  - name: "${r.name}"\n    type: url-test\n    url: "http://www.gstatic.com/generate_204"\n    interval: 300\n    proxies:\n`;
     finalProxies.forEach(p => {
       groupYaml += `      - "${p}"\n`;
     });
   });
   
-  // 6. 智能容灾组
+  // 5. 智能容灾组
   groupYaml += `  - name: "⚡ 智能容灾"\n    type: url-test\n    url: "http://www.gstatic.com/generate_204"\n    interval: 300\n    proxies:\n`;
   groupYaml += `      - "🇺🇸 美国·自动池"\n      - "🇸🇬 新加坡·自动池"\n      - "🇹🇼 台湾·自动池"\n`;
   
-  // 7. 应用专用策略组
-  const common = ["⚡ 智能容灾", ...createdGroups, "DIRECT"];
-  const apps = [
-    "🤖 OpenAI",
-    "🔮 Claude", 
-    "✨ Gemini",
-    "✖️ X & Grok",
-    "💰 金融支付",
-    "📺 YouTube",
-    "🎬 Netflix",
-    "🔎 Google",
-    "🐟 漏网之鱼"
-  ];
-  
-  apps.forEach(app => {
-    groupYaml += `  - name: "${app}"\n    type: select\n    proxies:\n`;
-    common.forEach(proxy => {
-      groupYaml += `      - "${proxy}"\n`;
-    });
-  });
-  
-  // 8. 构建自定义规则
-  const customRules = `  - GEOSITE,openai,🤖 OpenAI
-  - GEOSITE,anthropic,🔮 Claude
-  - DOMAIN-SUFFIX,claude.ai,🔮 Claude
-  - DOMAIN-KEYWORD,gemini,✨ Gemini
-  - GEOSITE,twitter,✖️ X & Grok
-  - GEOSITE,category-finance,💰 金融支付
-  - GEOSITE,youtube,📺 YouTube
-  - GEOSITE,netflix,🎬 Netflix
-  - GEOSITE,google,🔎 Google`;
-  
-  // 9. 组装最终 YAML（只有一个 rules:）
+  // 6. 组装最终 YAML（保留原机场的完整规则）
   const finalYaml = `${baseConfig}
 
 ${groupYaml}
-rules:
-${customRules}
-${originalRulesContent}`;
+
+${originalRules}`;
   
   return new Response(finalYaml, {
     headers: { "Content-Type": "text/yaml; charset=utf-8" }
